@@ -1,6 +1,7 @@
 package com.reodinas2.memoapp.adapter;
 
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -10,6 +11,7 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -82,9 +84,29 @@ public class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.ViewHolder> {
 
                     Intent intent = new Intent(context, EditActivity.class);
                     intent.putExtra("memo", memo);
-                    intent.putExtra("index", index);
 
-                    ((MainActivity)context).launcher.launch(intent);
+                    context.startActivity(intent);
+                }
+            });
+
+            imgDelete.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(context);
+                    builder.setTitle("메모 삭제");
+                    builder.setMessage("정말 삭제하시겠습니까?");
+                    builder.setNegativeButton("NO", null);
+                    builder.setPositiveButton("YES", new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int i) {
+
+                            int index = getAdapterPosition();
+
+                            ((MainActivity)context).deleteMemo(index);
+                        }
+                    });
+                    builder.show();
                 }
             });
 

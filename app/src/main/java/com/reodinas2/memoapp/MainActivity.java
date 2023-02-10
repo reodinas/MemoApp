@@ -30,6 +30,7 @@ import com.reodinas2.memoapp.api.UserApi;
 import com.reodinas2.memoapp.config.Config;
 import com.reodinas2.memoapp.model.Memo;
 import com.reodinas2.memoapp.model.MemoList;
+import com.reodinas2.memoapp.model.Res;
 import com.reodinas2.memoapp.model.UserRes;
 
 import java.util.ArrayList;
@@ -55,16 +56,7 @@ public class MainActivity extends AppCompatActivity {
     int offset = 0;
     int limit = 7;
     int count = 0;
-
-    public ActivityResultLauncher<Intent> launcher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
-                    new ActivityResultCallback<ActivityResult>() {
-                        @Override
-                        public void onActivityResult(ActivityResult result) {
-                            // 액티비티를 실행한 후, 이 액티비티로
-                            // 돌아왔을 때 할 일을 여기에 작성.
-                        }
-                    });
+    private int deleteIndex;
 
 
     @Override
@@ -311,5 +303,42 @@ public class MainActivity extends AppCompatActivity {
     // 로직처리가 끝나면 화면에서 사라지는 함수
     void dismissProgress(){
         dialog.dismiss();
+    }
+
+    public void deleteMemo(int index) {
+        // 네트워크로 메모 삭제하는 코드 작성
+
+        deleteIndex = index;
+
+        Retrofit retrofit = NetworkClient.getRetrofitClient(MainActivity.this);
+        MemoApi api = retrofit.create(MemoApi.class);
+
+        Memo memo = memoArrayList.get(index);
+
+        SharedPreferences sp = getSharedPreferences(Config.SP_NAME, MODE_PRIVATE);
+        String accessToken = "Bearer " + sp.getString(Config.ACCESS_TOKEN, "");
+
+        Call<Res> call = api.deleteMemo(memo.getId(), accessToken);
+        call.enqueue(new Callback<Res>() {
+            @Override
+            public void onResponse(Call<Res> call, Response<Res> response) {
+                if(response.isSuccessful()){
+                    // DB에서는 이미 삭제되었다.
+                    // 데이터를 새로 불러오지 않고 메모리에 있는 것만 삭제한다.
+                    memoArrayList.remove(deleteIndex);
+                    adapter.notifyDataSetChanged();
+                }else{
+
+                }
+            }
+
+            @Override
+            public void onFailure(Call<Res> call, Throwable t) {
+
+            }
+        });
+
+
+
     }
 }
