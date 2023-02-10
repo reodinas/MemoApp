@@ -1,5 +1,9 @@
 package com.reodinas2.memoapp;
 
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -47,6 +51,21 @@ public class MainActivity extends AppCompatActivity {
     String accessToken;
     private ProgressDialog dialog;
 
+    // 페이징 처리를 위한 변수
+    int offset = 0;
+    int limit = 7;
+    int count = 0;
+
+    public ActivityResultLauncher<Intent> launcher =
+            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                    new ActivityResultCallback<ActivityResult>() {
+                        @Override
+                        public void onActivityResult(ActivityResult result) {
+                            // 액티비티를 실행한 후, 이 액티비티로
+                            // 돌아왔을 때 할 일을 여기에 작성.
+                        }
+                    });
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -77,9 +96,28 @@ public class MainActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setHasFixedSize(true);
         recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+            }
 
-        // 네트워크로부터 내 메모를 가져온다.
-        getNetworkData();
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+
+                int lastPosition = ((LinearLayoutManager)recyclerView.getLayoutManager()).findLastCompletelyVisibleItemPosition();
+                int totalCount = recyclerView.getAdapter().getItemCount();
+                if(lastPosition+1 == totalCount){
+                    // 네트워크 통해서 데이터를 더 불러온다.
+                    if(count == limit){
+                        addNetworkData();
+                    }
+                }
+
+            }
+        });
+
 
         btnAdd.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -91,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void getNetworkData() {
+    private void addNetworkData() {
 
         progressBar.setVisibility(View.VISIBLE);
 
@@ -99,16 +137,73 @@ public class MainActivity extends AppCompatActivity {
 
         MemoApi api = retrofit.create(MemoApi.class);
 
-        Call<MemoList> call = api.getMemoList("Bearer "+accessToken, 0, 20);
+        Call<MemoList> call = api.getMemoList("Bearer " + accessToken, offset, limit);
 
         call.enqueue(new Callback<MemoList>() {
             @Override
             public void onResponse(Call<MemoList> call, Response<MemoList> response) {
-
                 progressBar.setVisibility(View.GONE);
 
                 if (response.isSuccessful()) {
-                    // 정상적으로 데이터를 받았으니, 리사이클러뷰에 표시
+
+                    // 정상적으로 데이터 받았으니, 리사이클러뷰에 표시
+                    MemoList memoList = response.body();
+
+                    memoArrayList.addAll(memoList.getItems());
+
+                    adapter.notifyDataSetChanged();
+
+                    // 오프셋 코드 처리
+                    count = memoList.getCount();
+                    offset = offset + count;
+
+                } else {
+                    Toast.makeText(MainActivity.this, "서버에 문제가 있습니다.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+            }
+
+            @Override
+            public void onFailure(Call<MemoList> call, Throwable t) {
+                progressBar.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        // 네트워크로부터 내 메모를 가져온다.
+        getNetworkData();
+    }
+
+
+    private void getNetworkData() {
+        progressBar.setVisibility(View.VISIBLE);
+
+        Retrofit retrofit = NetworkClient.getRetrofitClient(MainActivity.this);
+
+        MemoApi api = retrofit.create(MemoApi.class);
+
+        // 오프셋 초기화는, 함수 호출하기 전에!!
+        offset = 0;
+        count = 0;
+
+        Call<MemoList> call = api.getMemoList("Bearer "+accessToken, offset, limit);
+
+        call.enqueue(new Callback<MemoList>() {
+            @Override
+            public void onResponse(Call<MemoList> call, Response<MemoList> response) {
+                progressBar.setVisibility(View.GONE);
+
+                // getNetworkData 함수는, 항상 처음에 데이터를 가져오는 동작이므로
+                // 초기화 코드가 필요.
+                memoArrayList.clear();
+
+                if(response.isSuccessful()){
+
+                    // 정상적으로 데이터 받았으니, 리사이클러뷰에 표시
                     MemoList memoList = response.body();
 
                     memoArrayList.addAll(memoList.getItems());
@@ -116,22 +211,24 @@ public class MainActivity extends AppCompatActivity {
                     adapter = new MemoAdapter(MainActivity.this, memoArrayList);
                     recyclerView.setAdapter(adapter);
 
+                    // 오프셋 처리하는 코드
+                    count = memoList.getCount();
+                    offset += count;
 
                 }else{
-                    Toast.makeText(MainActivity.this, "서버에 문제가 있습니다", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "서버에 문제가 있습니다.", Toast.LENGTH_SHORT).show();
                     return;
                 }
             }
 
             @Override
             public void onFailure(Call<MemoList> call, Throwable t) {
-
                 progressBar.setVisibility(View.GONE);
-
             }
         });
 
     }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

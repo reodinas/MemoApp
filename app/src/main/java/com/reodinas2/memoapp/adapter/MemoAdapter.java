@@ -1,15 +1,20 @@
 package com.reodinas2.memoapp.adapter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.cardview.widget.CardView;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.reodinas2.memoapp.EditActivity;
+import com.reodinas2.memoapp.MainActivity;
 import com.reodinas2.memoapp.R;
 import com.reodinas2.memoapp.model.Memo;
 
@@ -57,6 +62,7 @@ public class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.ViewHolder> {
         TextView txtDatetime;
         TextView txtContent;
         ImageView imgDelete;
+        CardView cardView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -65,6 +71,22 @@ public class MemoAdapter extends RecyclerView.Adapter<MemoAdapter.ViewHolder> {
             txtDatetime = itemView.findViewById(R.id.txtDatetime);
             txtContent = itemView.findViewById(R.id.editContent);
             imgDelete = itemView.findViewById(R.id.imgDelete);
+            cardView = itemView.findViewById(R.id.cardView);
+
+            cardView.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+
+                    int index = getAdapterPosition();
+                    Memo memo = memoArrayList.get(index);
+
+                    Intent intent = new Intent(context, EditActivity.class);
+                    intent.putExtra("memo", memo);
+                    intent.putExtra("index", index);
+
+                    ((MainActivity)context).launcher.launch(intent);
+                }
+            });
 
         }
     }
